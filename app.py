@@ -1,105 +1,75 @@
-from flask import Flask, request, redirect, url_for, send_file, current_app
 import os
 import json
-from datetime import datetime
-
-# Importación de servicios y librerías
 import firebase_admin
 from firebase_admin import credentials, firestore
+from flask import Flask, render_template, request, session, redirect, url_for
 import mercadopago
+from datetime import datetime
 
-# Importación de Blueprints (las rutas que moveremos)
-# Nota: Necesitarás crear los archivos routes/ para que esto funcione
+# Importar los Blueprints de Rutas
 from routes.admin_routes import admin_bp
 from routes.wizard_routes import wizard_bp
-from routes.shop_routes import shop_bp # Nuevo Blueprint para pagos
+from routes.shop_routes import shop_bp 
 
-# ----------------------------------------------------
-# 1. INICIALIZACIÓN DE COMPONENTES GLOBALES (Mantenido aquí por su complejidad)
-# ----------------------------------------------------
+app = Flask(__name__)
 
-# 🔐 Inicialización segura de Firebase (Líneas 25-34 del original)
+# --- Configuración y Inicialización de Clientes ---
+
+# CLAVE para la sesión (reemplazar con valor seguro)
+app.secret_key = os.getenv("FLASK_SECRET_KEY", "CLAVE_ULTRA_SECRETA_DEV")
+app.config['UPLOAD_FOLDER'] = 'static/img' # Carpeta local para subir imágenes
+
+# Inicialización segura de Firebase
 try:
     cred_dict = json.loads(os.getenv("FIREBASE_CREDENTIALS_JSON"))
     cred = credentials.Certificate(cred_dict)
     firebase_admin.initialize_app(cred)
-    print("✅ Firebase inicializado")
+    
+    db_client = firestore.client()
+    app.config['DB_CLIENT'] = db_client # Guardar el cliente en la configuración de la app
+    
+    print("✅ Firebase inicializado y cliente DB guardado.")
 except Exception as e:
-    print("❌ Error al cargar JSON de Firebase:", e)
-    
-db = firestore.client() # Cliente Firestore
+    # Este error detiene Gunicorn si la variable está mal/vacía
+    print(f"❌ Error CRÍTICO al cargar JSON de Firebase: {e}") 
 
-# 🔑 Inicialización segura de Mercado Pago (Líneas 37-43 del original)
+# Inicialización segura de Mercado Pago
 access_token = os.getenv("MERCADO_PAGO_TOKEN")
-sdk = mercadopago.SDK(access_token.strip()) if access_token and isinstance(access_token, str) else None
-if sdk:
-    print("✅ SDK de Mercado Pago inicializado globalmente")
+if access_token and isinstance(access_token, str):
+    sdk = mercadopago.SDK(access_token.strip())
+    app.config['MP_SDK'] = sdk # Guardar el SDK en la configuración
+    print("✅ SDK de Mercado Pago inicializado globalmente y guardado.")
 else:
-    print("⚠️ MERCADO_PAGO_TOKEN no configurado, SDK no inicializado")
+    app.config['MP_SDK'] = None
+    print("⚠️ MERCADO_PAGO_TOKEN no configurado, SDK no inicializado.")
     
-# ----------------------------------------------------
-# 2. CONFIGURACIÓN DE FLASK
-# ----------------------------------------------------
+# --- Registro de Blueprints ---
 
-app = Flask(__name__)
+app.register_blueprint(admin_bp, url_prefix='/admin') # Puedes usar un prefijo si lo deseas
+app.register_blueprint(wizard_bp) # Montado en la raíz
+app.register_blueprint(shop_bp) 
 
-# 🔒 CORRECCIÓN DE SEGURIDAD (WASM + Servidor)
-# Línea 59 original: REDUCIDA de 200MB a 5MB
-app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024 
-app.secret_key = os.getenv("FLASK_SECRET_KEY") or "clave-secreta-temporal"
-app.config['SESSION_COOKIE_SECURE'] = not app.debug
+# --- Filtros y Handlers de bajo nivel ---
 
-UPLOAD_FOLDER = 'static/img'
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-
-# 💡 CLAVE: GUARDAR LOS CLIENTES GLOBALES EN LA CONFIGURACIÓN DEL APP
-app.config['DB_CLIENT'] = db
-app.config['MP_SDK'] = sdk
-
-# ----------------------------------------------------
-# 3. REGISTRO DE RUTAS (BLUEPRINTS)
-# ----------------------------------------------------
-
-# El orden no es crucial, pero es buena práctica agrupar funcionalidades.
-app.register_blueprint(admin_bp)
-app.register_blueprint(wizard_bp)
-app.register_blueprint(shop_bp) # Registrar el nuevo Blueprint de pagos
-
-# ----------------------------------------------------
-# 4. FUNCIONES ÚNICAS DE HOOKS Y FILTROS
-# ----------------------------------------------------
-
-# Filtro imgver (Líneas 801-805 del original)
 @app.template_filter('imgver')
 def imgver_filter(name):
-    # Necesita current_app para acceder a UPLOAD_FOLDER
+    """Filtro para añadir versión de caché a las imágenes locales."""
     try:
-        return int(os.path.getmtime(os.path.join(current_app.config['UPLOAD_FOLDER'], name))) % 10_000
+        # Usa el timestamp del archivo local para evitar caché
+        return f"{name}?v={int(os.path.getmtime(os.path.join(app.config['UPLOAD_FOLDER'], name))) % 10_000}"
     except Exception:
-        return 0
-        
-# Handler after_request (Líneas 806-final del original)
+        return name
+
 @app.after_request
 def cache(response):
+    """Configura encabezados de caché para archivos estáticos."""
     if request.path.startswith("/static/img"):
-        # Establece la caché de un año para imágenes (Línea 808 original)
-        one_year_seconds = 31536000
-        response.headers['Cache-Control'] = f'public, max-age={one_year_seconds}, immutable'
-        response.headers['Expires'] = datetime.utcnow().strftime('%a, %d %b %Y %H:%M:%S GMT')
-    
-    # Previene que navegadores y proxies almacenen en caché el HTML (Líneas 811-814 original)
-    if not request.path.startswith("/static/"):
-        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-        response.headers['Pragma'] = 'no-cache'
-        response.headers['Expires'] = '0'
-        
+        response.headers['Cache-Control'] = 'public, max-age=604800' # 1 semana
     return response
 
-# ----------------------------------------------------
-# 5. INICIO DE LA APLICACIÓN
-# ----------------------------------------------------
-
-if __name__ == '__main__':
-    # Usar host='0.0.0.0' para que Render/Heroku pueda servir la aplicación
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+# --- Rutas de Manejo de Error/Fallback (Ejemplo) ---
+@app.route('/test-db')
+def test_db():
+    if app.config.get('DB_CLIENT'):
+        return "Conexión a Firestore OK", 200
+    return "Fallo en conexión a Firestore", 500
