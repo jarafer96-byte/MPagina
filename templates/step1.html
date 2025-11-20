@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <!-- Vista previa para redes sociales -->
+  <meta property="og:title" content="Crea tu página personalizada">
+  <meta property="og:description" content="Armá tu sitio web visualmente, sin código. Elegí estilo, cargá productos y descargalo listo.">
+  <meta property="og:image" content="https://appweb-t6jr.onrender.com/static/img/preview.jpg">
+  <meta property="og:url" content="https://appweb-t6jr.onrender.com">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <meta charset="UTF-8">
+  <title>Tipo de sitio</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- Bootstrap -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Roboto&family=Playfair+Display&family=Fira+Code&family=Raleway&family=Quicksand&family=Pacifico&family=Source+Serif+4&display=swap" rel="stylesheet">
+
+  <style>
+    body {
+      background-color: #000;
+      font-family: sans-serif;
+      color: white;
+    }
+
+    h2 {
+      color: white;
+    }
+
+    .icono {
+      height: 20px;
+      width: auto;
+      object-fit: contain;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+
+    .card {
+      background-color: rgba(255, 255, 255, 0.05);
+      color: white;
+      border: none;
+      border-radius: 12px;
+    }
+
+    .form-control {
+      background-color: rgba(255, 255, 255, 0.05);
+      color: white;
+      border: none;
+      border-radius: 8px;
+    }
+
+    .form-control::placeholder {
+      color: #aaa;
+    }
+
+    .btn-gradient {
+      background: linear-gradient(135deg, #8e2de2, #ff6f61);
+      color: white;
+      border: none;
+      padding: 10px 24px;
+      border-radius: 50px;
+      font-weight: bold;
+      box-shadow: 0 0 10px rgba(255,255,255,0.3);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .btn-gradient:hover {
+      transform: scale(1.05);
+      box-shadow: 0 0 15px rgba(255,255,255,0.5);
+    }
+
+    .fuente-opcion {
+      display: inline-block;
+      margin-right: 20px;
+      margin-bottom: 10px;
+      cursor: pointer;
+    }
+
+    .fuente-opcion input[type="radio"] {
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+  </style>
+</head>
+<body>
+  <div class="container py-5">
+    <h2 class="mb-4 text-center">Creá tu sitio tipo catálogo</h2>
+
+    <form id="form-crear-admin" onsubmit="crearAdmin(event)" 
+      style="display:flex; align-items:center; gap:10px; flex-direction:row;">
+  <label for="usuario_admin" style="font-weight:bold;">Paso 1:</label>
+  <input type="text" id="usuario_admin" required placeholder="Ingresá tu email" style="width:180px;">
+  
+  <label for="clave_admin">Contraseña:</label>
+  <input type="password" id="clave_admin" required style="width:120px;">
+  
+  <!-- ✅ Botón con estilo -->
+  <button type="submit" class="btn-gradient">Crear admin</button>
+</form>
+
+
+<div style="display:flex; align-items:center; gap:10px;">
+  <label for="email" style="font-weight:bold;">Paso 2:</label>
+  <input type="email" id="email" required placeholder="Ingresá tu email" style="width:180px;">
+  
+  <!-- ✅ Botón con estilo -->
+  <button onclick="crearRepositorio()" class="btn-gradient">Crear repositorio</button>
+  
+  <span id="resultado-repo" style="margin-left:10px;"></span>
+</div>
+
+    
+    <form method="POST" enctype="multipart/form-data">
+      <input type="hidden" name="tipo_web" value="catálogo">
+
+      <div class="mb-4 card p-3">
+        <label class="form-label text-white">Cuenta sobre ti, o tu emprendimiento/productos...</label>
+        <textarea name="sobre_mi" class="form-control" rows="3" placeholder="Contanos quién sos, qué hacés, o qué ofrece tu emprendimiento..."></textarea>
+      </div>
+
+      <div class="mb-4 card p-3">
+        <label class="form-label text-white">Logo</label>
+        <input type="file" name="logo" accept="image/*" class="form-control">
+      </div>
+
+      <div class="mb-4 card p-3">
+        <label class="form-label text-white">Estilo de fuente</label>
+        <div class="d-flex flex-wrap">
+          <label class="fuente-opcion text-white" style="font-family: 'Roboto', sans-serif;">
+            <input type="radio" name="fuente" value="'Roboto', sans-serif"> Roboto
+          </label>
+          <label class="fuente-opcion text-white" style="font-family: 'Playfair Display', serif;">
+            <input type="radio" name="fuente" value="'Playfair Display', serif"> Playfair Display
+          </label>
+          <label class="fuente-opcion text-white" style="font-family: 'Fira Code', monospace;">
+            <input type="radio" name="fuente" value="'Fira Code', monospace"> Fira Code
+          </label>
+          <label class="fuente-opcion text-white" style="font-family: 'Raleway', sans-serif;">
+            <input type="radio" name="fuente" value="'Raleway', sans-serif"> Raleway
+          </label>
+          <label class="fuente-opcion text-white" style="font-family: 'Quicksand', sans-serif;">
+            <input type="radio" name="fuente" value="'Quicksand', sans-serif"> Quicksand
+          </label>
+          <label class="fuente-opcion text-white" style="font-family: 'Pacifico', cursive;">
+            <input type="radio" name="fuente" value="'Pacifico', cursive"> Pacifico
+          </label>
+          <label class="fuente-opcion text-white" style="font-family: 'Source Serif 4', serif;">
+            <input type="radio" name="fuente" value="'Source Serif 4', serif"> Source Serif 4
+          </label>
+        </div>
+      </div>
+
+     <div class="card p-4 shadow-sm">
+  <h5 class="mb-3 text-white">Agregá tus redes y links de contacto</h5>
+  <div class="d-flex flex-column gap-3">
+
+<div class="mb-3">
+  <label class="form-label text-white d-flex align-items-center">
+    <img src="/static/img/facebook.png" class="icono" alt="Facebook"> Facebook
+    <!-- Botón de información -->
+    <button type="button" class="btn btn-sm btn-info ms-2" onclick="toggleInfoFacebook()" style="padding: 2px 6px; font-size: 14px;">
+      Ayuda
+    </button>
+  </label>
+
+  <!-- Campo para el link -->
+  <input type="url" name="facebook" class="form-control" placeholder="https://facebook.com/tu_pagina">
+
+  <!-- Bloque de ayuda oculto -->
+  <div id="infoFacebook" style="display: none; margin-top: 10px; font-size: 14px; color: #ccc;">
+    <p><strong>Cómo obtener tu link de Facebook:</strong></p>
+
+    <!-- Ayuda Web -->
+    <p>🌐 Desde la versión web:</p>
+    <img src="/static/img/ejemplo-facebook-web.png" alt="Ejemplo Facebook Web" style="max-width: 100%; border-radius: 6px; margin-bottom: 10px;">
+
+    <!-- Ayuda App -->
+    <p>📱 Desde la app móvil:</p>
+    <img src="/static/img/ejemplo-facebook-app.png" 
+     alt="Ejemplo Facebook App" 
+     style="width: 390px; height: 100px; border-radius: 6px;"
+  </div>
+</div>
+    <!-- Instagram -->
+    <div>
+      <label class="form-label text-white">
+        <img src="/static/img/instagram.png" class="icono" alt="Instagram"> Instagram
+      </label>
+      <input type="url" name="instagram" class="form-control" placeholder="https://instagram.com/tu_usuario">
+    </div>
+    <!-- WhatsApp -->
+    <div>
+      <label class="form-label text-white">
+        <img src="/static/img/whatsapp.png" class="icono" alt="WhatsApp"> WhatsApp (Después del 549 siga con su numero real sin espacios)
+      </label>
+      <input type="url" name="whatsapp" class="form-control" value="https://wa.me/549" placeholder="Ej: https://wa.me/5491123456789">
+    </div>
+
+      <div class="mb-3">
+        <label for="ubicacion" class="form-label">Dirección (Escriba su direccion)</label>
+        <input type="text" class="form-control" id="ubicacion" name="ubicacion" placeholder="Ej: Corrientes 9001, Buenos Aires">
+      </div>
+
+<div class="mb-3">
+  <label for="link_mapa" class="form-label d-flex align-items-center">
+    <span>(Opcional) Link de Google Maps</span>
+    <button type="button" class="btn btn-sm btn-info ms-2" onclick="toggleInfoMapa()" style="padding: 2px 6px; font-size: 14px;">
+      Ayuda
+    </button>
+  </label>
+
+  <input type="url" class="form-control" id="link_mapa" name="link_mapa" placeholder="https://maps.app.goo.gl/...">
+
+  <div id="infoMapa" style="display: none; margin-top: 6px; font-size: 14px; color: #ccc;">
+    Si tu negocio está en Google Maps, al darle a -Compartir- te da un -Vinculo- desde la app o web y podes pegarlo acá.<br>
+    <strong>Ejemplo:</strong> <code>https://maps.app.goo.gl/S5W57nqK3CA59CNsadp9</code><br>
+    <img src="/static/img/ejemplo-maps.png" alt="Ejemplo de Google Maps" style="max-width: 100%; margin-top: 8px; border-radius: 6px;">
+  </div>
+</div>
+
+      <div class="text-center mt-4">
+        <button type="submit" class="btn-gradient">Continuar</button>
+      </div>
+    </form>
+  </div>
+<script>
+function toggleInfoFacebook() {
+  const info = document.getElementById('infoFacebook');
+  info.style.display = info.style.display === 'none' ? 'block' : 'none';
+}
+function toggleInfoMapa() {
+  const info = document.getElementById('infoMapa');
+  info.style.display = info.style.display === 'none' ? 'block' : 'none';
+}
+function toggleCampoMP() {
+  const activo = document.getElementById('activarMP').checked;
+  document.getElementById('campoMP').style.display = activo ? 'block' : 'none';
+}
+  
+async function crearRepositorio() {
+  const email = document.getElementById("email").value;
+  if (!email) return alert("Ingresá un email válido");
+
+  const res = await fetch("/crear-repo", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email })
+  });
+
+  const data = await res.json();
+  const resultado = document.getElementById("resultado-repo");
+
+  if (data.url) {
+    resultado.innerHTML = "<span style='color:green;font-size:20px;'>✔ Repositorio creado correctamente</span>";
+  } else {
+    resultado.innerHTML = `❌ Error: ${data.error || "No se pudo crear el repositorio"}`;
+  }
+}
+  
+function crearAdmin(event) {
+  event.preventDefault();
+  const usuario = document.getElementById("usuario_admin").value.trim();
+  const clave = document.getElementById("clave_admin").value.trim();
+
+  console.log("📤 Intentando crear admin:", { usuario, clave });
+
+  if (!usuario || !clave) {
+    alert("Faltan datos");
+    return;
+  }
+
+  fetch("/crear-admin", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ usuario, clave })
+  })
+    .then(res => {
+      console.log("📡 Respuesta HTTP:", res.status);
+      return res.json();
+    })
+    .then(data => {
+      console.log("📦 Respuesta JSON:", data);
+      if (data.status === "ok") {
+        alert("✅ Admin creado correctamente");
+      } else {
+        alert("❌ Error: " + data.message);
+      }
+    })
+    .catch(err => {
+      console.error("❌ Error en fetch:", err);
+      alert("❌ Error al crear admin");
+    });
+}
+
+function validarCredencialMP(input) {
+  const valido = input.value.startsWith("APP_USR-");
+  document.getElementById('avisoMP').style.display = valido || input.value === "" ? 'none' : 'block';
+}
+</script>
+</body>
+</html>

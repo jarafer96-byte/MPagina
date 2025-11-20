@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Step 0 - Subir imágenes</title>
+  <style>
+    body {
+      background-color: #000;
+      color: white;
+      font-family: 'Raleway', sans-serif;
+      padding: 40px;
+    }
+
+    h2 {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    form {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    input[type="file"] {
+      margin-bottom: 10px;
+      color: white;
+    }
+
+    button {
+      background: linear-gradient(135deg, #ff0080, #7928ca);
+      border: none;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+      margin: 5px;
+    }
+
+    button:hover {
+      opacity: 0.9;
+    }
+
+    .error {
+      color: #ff4d4d;
+      margin-top: 10px;
+      text-align: center;
+    }
+
+    .meta {
+      text-align: center;
+      color: #ccc;
+      font-size: 0.9em;
+      margin-top: 8px;
+    }
+
+    .preview {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+      margin-top: 20px;
+    }
+
+    .preview-item {
+      position: relative;
+      display: inline-block;
+    }
+
+    .preview img {
+      width: 150px;
+      height: auto;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      object-fit: contain;
+      background-color: #111;
+    }
+
+    .remove-btn {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      background: rgba(255,0,0,0.7);
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 22px;
+      height: 22px;
+      cursor: pointer;
+      font-size: 14px;
+      line-height: 2px;
+      text-align: center;
+      padding-left: 10px;
+    }
+
+    .preview-subidas {
+      border-top: 1px solid #444;
+      padding-top: 20px;
+    }
+
+    .preview-subidas h4 {
+      width: 100%;
+      text-align: center;
+      margin-bottom: 10px;
+      color: #ccc;
+    }
+  </style>
+</head>
+<body>
+  <h2>Subí tus imágenes (120 imágenes, máx. 200 MB total y hasta 1 MB c/u)</h2>
+  <p style="text-align: center; margin-top: 8px;">
+    Preferentemente fotos editadas y/o con poco peso
+  </p>
+
+  <form method="POST" action="/step0" enctype="multipart/form-data">
+    <input type="file" name="imagenes" id="imagenes" multiple accept="image/*">
+    <br>
+    <button type="submit">Subir y continuar</button>
+    <button type="button" id="clearBtn">Quitar todas</button>
+  </form>
+
+  <div class="error" id="error"></div>
+  <div class="meta" id="meta"></div>
+  <div class="preview" id="preview"></div>
+
+  {% if imagenes_step0 %}
+    <div class="preview-subidas">
+      <h4>Imágenes ya subidas</h4>
+      {% for img in imagenes_step0 %}
+        <img src="https://f005.backblazeb2.com/file/imagenes-appweb/{{ img }}"
+             alt="Imagen subida"
+             onerror="this.src='/static/img/fallback.webp';">
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <script>
+    const input = document.getElementById('imagenes');
+    const preview = document.getElementById('preview');
+    const error = document.getElementById('error');
+    const clearBtn = document.getElementById('clearBtn');
+    const meta = document.getElementById('meta');
+
+    let archivosAcumulados = [];
+
+    input.addEventListener('change', () => {
+      error.textContent = '';
+      const nuevos = Array.from(input.files);
+
+      // Validación de tamaño
+      for (const file of nuevos) {
+        if (file.size > 4 * 1024 * 1024) {
+          error.textContent = `La imagen "${file.name}" supera los 4 MB.`;
+          input.value = '';
+          return;
+        }
+      }
+
+      // Acumular evitando duplicados
+      nuevos.forEach(f => {
+        const existe = archivosAcumulados.some(a =>
+          a.name === f.name && a.size === f.size && a.lastModified === f.lastModified
+        );
+        if (!existe) archivosAcumulados.push(f);
+      });
+
+      syncInputWithAccumulated();
+      renderPreview();
+    });
+
+    clearBtn.addEventListener('click', () => {
+      archivosAcumulados = [];
+      syncInputWithAccumulated();
+      renderPreview();
+    });
+
+    function syncInputWithAccumulated() {
+      const dt = new DataTransfer();
+      archivosAcumulados.forEach(file => dt.items.add(file));
+      input.files = dt.files; // el formulario enviará todos los acumulados
+    }
+
+    function renderPreview() {
+      // Mostrar meta info
+      const totalBytes = archivosAcumulados.reduce((sum, f) => sum + f.size, 0);
+      const totalMB = (totalBytes / (1024 * 1024)).toFixed(2);
+      meta.textContent = archivosAcumulados.length
+        ? `${archivosAcumulados.length} archivo(s) — ${totalMB} MB`
+        : '';
+
+      // Render miniaturas
+      preview.innerHTML = '';
+      archivosAcumulados.forEach((file, index) => {
+        const reader = new FileReader();
+        reader.onload = e => {
+          const item = document.createElement('div');
+          item.className = 'preview-item';
+
+          const img = document.createElement('img');
+          img.src = e.target.result;
+
+          const removeBtn = document.createElement('button');
+          removeBtn.className = 'remove-btn';
+          removeBtn.textContent = '✖';
+          removeBtn.onclick = () => {
+            archivosAcumulados.splice(index, 1);
+            syncInputWithAccumulated();
+            renderPreview();
+          };
+
+          item.appendChild(img);
+          item.appendChild(removeBtn);
+          preview.appendChild(item);
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+  </script>
+</body>
+</html>
+
