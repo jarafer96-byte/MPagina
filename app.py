@@ -1,75 +1,97 @@
+from flask import Flask, request, redirect, url_for, send_file, current_app, render_template
 import os
 import json
-import firebase_admin
-from firebase_admin import credentials, firestore
-from flask import Flask, render_template, request, session, redirect, url_for
-import mercadopago
 from datetime import datetime
 
-# Importar los Blueprints de Rutas
+# Importación de servicios y librerías
+import firebase_admin
+from firebase_admin import credentials, firestore
+import mercadopago
+
+# Importación de Blueprints (Rutas)
 from routes.admin_routes import admin_bp
 from routes.wizard_routes import wizard_bp
 from routes.shop_routes import shop_bp 
 
-app = Flask(__name__)
+# ----------------------------------------------------
+# 1. INICIALIZACIÓN DE COMPONENTES GLOBALES
+# ----------------------------------------------------
 
-# --- Configuración y Inicialización de Clientes ---
-
-# CLAVE para la sesión (reemplazar con valor seguro)
-app.secret_key = os.getenv("FLASK_SECRET_KEY", "CLAVE_ULTRA_SECRETA_DEV")
-app.config['UPLOAD_FOLDER'] = 'static/img' # Carpeta local para subir imágenes
-
-# Inicialización segura de Firebase
+# 🔐 Inicialización segura de Firebase
 try:
     cred_dict = json.loads(os.getenv("FIREBASE_CREDENTIALS_JSON"))
     cred = credentials.Certificate(cred_dict)
     firebase_admin.initialize_app(cred)
-    
     db_client = firestore.client()
-    app.config['DB_CLIENT'] = db_client # Guardar el cliente en la configuración de la app
-    
-    print("✅ Firebase inicializado y cliente DB guardado.")
+    print("✅ Firebase inicializado")
 except Exception as e:
-    # Este error detiene Gunicorn si la variable está mal/vacía
+    db_client = None
     print(f"❌ Error CRÍTICO al cargar JSON de Firebase: {e}") 
-
-# Inicialización segura de Mercado Pago
-access_token = os.getenv("MERCADO_PAGO_TOKEN")
-if access_token and isinstance(access_token, str):
-    sdk = mercadopago.SDK(access_token.strip())
-    app.config['MP_SDK'] = sdk # Guardar el SDK en la configuración
-    print("✅ SDK de Mercado Pago inicializado globalmente y guardado.")
-else:
-    app.config['MP_SDK'] = None
-    print("⚠️ MERCADO_PAGO_TOKEN no configurado, SDK no inicializado.")
     
-# --- Registro de Blueprints ---
+# 🔑 Inicialización segura de Mercado Pago
+access_token = os.getenv("MERCADO_PAGO_TOKEN")
+sdk = mercadopago.SDK(access_token.strip()) if access_token and isinstance(access_token, str) else None
+if sdk:
+    print("✅ SDK de Mercado Pago inicializado globalmente")
+else:
+    print("⚠️ MERCADO_PAGO_TOKEN no configurado, SDK no inicializado")
+    
+# ----------------------------------------------------
+# 2. CONFIGURACIÓN DE FLASK
+# ----------------------------------------------------
 
-app.register_blueprint(admin_bp, url_prefix='/admin') # Puedes usar un prefijo si lo deseas
-app.register_blueprint(wizard_bp) # Montado en la raíz
+app = Flask(__name__)
+
+# Configuración de seguridad y directorios
+app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024 
+app.secret_key = os.getenv("FLASK_SECRET_KEY") or "clave-secreta-temporal"
+app.config['SESSION_COOKIE_SECURE'] = not app.debug
+app.config['UPLOAD_FOLDER'] = 'static/img'
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
+# 💡 CLAVE: GUARDAR LOS CLIENTES GLOBALES
+app.config['DB_CLIENT'] = db_client
+app.config['MP_SDK'] = sdk
+
+# ----------------------------------------------------
+# 3. REGISTRO DE RUTAS (BLUEPRINTS)
+# ----------------------------------------------------
+
+app.register_blueprint(admin_bp)
+app.register_blueprint(wizard_bp)
 app.register_blueprint(shop_bp) 
 
-# --- Filtros y Handlers de bajo nivel ---
+# ----------------------------------------------------
+# 4. FUNCIONES ÚNICAS DE HOOKS Y FILTROS
+# ----------------------------------------------------
 
+# Filtro imgver
 @app.template_filter('imgver')
 def imgver_filter(name):
-    """Filtro para añadir versión de caché a las imágenes locales."""
+    # Usa current_app para acceder a UPLOAD_FOLDER
     try:
-        # Usa el timestamp del archivo local para evitar caché
-        return f"{name}?v={int(os.path.getmtime(os.path.join(app.config['UPLOAD_FOLDER'], name))) % 10_000}"
+        return int(os.path.getmtime(os.path.join(current_app.config['UPLOAD_FOLDER'], name))) % 10_000
     except Exception:
-        return name
-
+        return 0
+        
+# Handler after_request
 @app.after_request
 def cache(response):
-    """Configura encabezados de caché para archivos estáticos."""
     if request.path.startswith("/static/img"):
-        response.headers['Cache-Control'] = 'public, max-age=604800' # 1 semana
+        one_year_seconds = 31536000
+        response.headers['Cache-Control'] = f'public, max-age={one_year_seconds}, immutable'
+        response.headers['Expires'] = datetime.utcnow().strftime('%a, %d %b %Y %H:%M:%S GMT')
+    
+    if not request.path.startswith("/static/"):
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+        
     return response
 
-# --- Rutas de Manejo de Error/Fallback (Ejemplo) ---
-@app.route('/test-db')
-def test_db():
-    if app.config.get('DB_CLIENT'):
-        return "Conexión a Firestore OK", 200
-    return "Fallo en conexión a Firestore", 500
+# ----------------------------------------------------
+# 5. INICIO DE LA APLICACIÓN
+# ----------------------------------------------------
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
